@@ -1,36 +1,56 @@
-// create a web server
-const express = require('express');
-const app = express();
+// Create web server
+var express = require('express');
+var app = express();
+var bodyParser = require('body-parser');
+// Create server
+var server = require('http').createServer(app);
+// Create socket
+var io = require('socket.io')(server);
+// Define port
+var port = 3000;
+// Define array to store comments
+var comments = [];
+// Define array to store users
+var users = [];
+// Define array to store user connections
+var connections = [];
 
-// enable POST request
-app.use(express.json());
+// Define middleware
+app.use(express.static(__dirname));
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({extended: false}));
 
-// enable CORS
-app.use((req, res, next) => {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    next();
+// Create route
+app.get('/comments', function(req, res){
+    res.send(comments);
 });
 
-// create a comments array
-const comments = [];
-
-// create a POST request
-app.post('/comments', (req, res) => {
-    // get the body from the request
-    const body = req.body;
-    // add the body to the comments array
-    comments.push(body);
-    // return the body to the client
-    res.json(body);
+// Create route
+app.post('/comments', function(req, res){
+    comments.push(req.body);
+    io.emit('comment', req.body);
+    res.sendStatus(200);
 });
 
-// create a GET request
-app.get('/comments', (req, res) => {
-    // return the comments array to the client
-    res.json(comments);
+// Create route
+app.post('/users', function(req, res){
+    users.push(req.body);
+    io.emit('user', req.body);
+    res.sendStatus(200);
 });
 
-// start the server
-app.listen(3000, () => {
-    console.log('Server is running on http://localhost:3000');
+// Create socket connection
+io.on('connection', function(socket){
+    connections.push(socket);
+    console.log('Connected: %s sockets connected', connections.length);
+
+    socket.on('disconnect', function(data){
+        connections.splice(connections.indexOf(socket), 1);
+        console.log('Disconnected: %s sockets connected', connections.length);
+    });
+});
+
+// Listen for server
+server.listen(port, function(){
+    console.log('Server is running on port: ' + port);
 });
